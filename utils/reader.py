@@ -24,6 +24,9 @@ class CoNLLReader(Dataset):
 
         self.label_to_id = {} if target_vocab is None else target_vocab
         self.instances = []
+        # Helpers to extract tag names
+        #self.all_ner_tags = set()
+        #self.all_ner_tags_names = set()
 
     def get_target_size(self):
         return len(set(self.label_to_id.values()))
@@ -46,7 +49,6 @@ class CoNLLReader(Dataset):
             if self._max_instances != -1 and instance_idx > self._max_instances:
                 break
             sentence_str, tokens_sub_rep, token_masks_rep, coded_ner_, gold_spans_, mask = self.parse_line_for_ner(fields=fields)
-
             tokens_tensor = torch.tensor(tokens_sub_rep, dtype=torch.long)
             tag_tensor = torch.tensor(coded_ner_, dtype=torch.long).unsqueeze(0)
             token_masks_rep = torch.tensor(token_masks_rep)
@@ -59,6 +61,13 @@ class CoNLLReader(Dataset):
     def parse_line_for_ner(self, fields):
         tokens_, ner_tags = fields[0], fields[-1]
         sentence_str, tokens_sub_rep, ner_tags_rep, token_masks_rep, mask = self.parse_tokens_for_ner(tokens_, ner_tags)
+        # Used to extract NER tags from Multiconer
+        # for ner_tag in ner_tags:
+        #     if ner_tag not in self.all_ner_tags_names:
+        #         idx = len(self.all_ner_tags)
+        #         self.all_ner_tags.add((ner_tag,idx))
+        #         self.all_ner_tags_names.add(ner_tag)
+
         gold_spans_ = extract_spans(ner_tags_rep)
         coded_ner_ = [self.label_to_id[tag] if tag in self.label_to_id else self.label_to_id['O'] for tag in ner_tags_rep]
 

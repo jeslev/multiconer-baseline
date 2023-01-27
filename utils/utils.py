@@ -24,6 +24,14 @@ weibo_iob = {'O': 0, 'B-PER.NOM': 1, 'E-PER.NOM': 2, 'B-LOC.NAM': 3, 'E-LOC.NAM'
 msra_iob = {'O': 0, 'S-NS': 1, 'B-NS': 2, 'E-NS': 3, 'B-NT': 4, 'M-NT': 5, 'E-NT': 6, 'M-NS': 7, 'B-NR': 8, 'M-NR': 9, 'E-NR': 10, 'S-NR': 11, 'S-NT': 12}
 ontonotes_iob = {'E-PER': 0, 'E-GPE': 1, 'E-LOC': 2, 'M-ORG': 3, 'E-ORG': 4, 'S-ORG': 5, 'B-GPE': 6, 'O': 7, 'M-PER': 8, 'M-LOC': 9, 'B-PER': 10, 'M-GPE': 11, 'S-LOC': 12, 'B-ORG': 13,
                  'S-PER': 14, 'B-LOC': 15, 'S-GPE': 16}
+multiconerii_iob = {'I-Food': 40, 'I-Athlete': 16, 'I-MusicalGRP': 29, 'B-Facility': 20, 'B-Politician': 13, 'I-AerospaceManufacturer': 65, 'B-Vehicle': 50, 'I-Vehicle': 51,
+                    'I-HumanSettlement': 19, 'B-Food': 39, 'I-Software': 11, 'B-MusicalWork': 17, 'I-Station': 42, 'I-Cleric': 25, 'I-Medication/Vaccine': 55, 'I-SportsGRP': 48,
+                     'I-Drink': 63, 'B-ArtWork': 37, 'B-PublicCorp': 32, 'I-Artist': 7, 'I-OtherPROD': 43, 'B-ORG': 5, 'B-SportsManager': 30, 'I-ORG': 26, 'I-Politician': 14,
+                     'B-Cleric': 24, 'I-CarManufacturer': 61, 'B-Artist': 6, 'B-WrittenWork': 9, 'I-Disease': 56, 'B-Disease': 49, 'B-Athlete': 15, 'I-PrivateCorp': 52, 'I-OtherLOC': 46,
+                     'B-OtherPER': 0, 'I-ArtWork': 38, 'B-Scientist': 22, 'B-MedicalProcedure': 35, 'B-Drink': 62, 'I-Facility': 21, 'B-AnatomicalStructure': 57, 'O': 2, 'I-MedicalProcedure': 36,
+                     'B-Medication/Vaccine': 53, 'I-SportsManager': 31, 'I-AnatomicalStructure': 58, 'I-Clothing': 66, 'I-Symptom': 59, 'B-HumanSettlement': 8, 'I-Scientist': 23, 'B-Software': 10,
+                     'B-SportsGRP': 27, 'I-PublicCorp': 33, 'B-CarManufacturer': 44, 'I-WrittenWork': 12, 'B-Symptom': 54, 'B-AerospaceManufacturer': 60, 'B-OtherPROD': 34, 'I-OtherPER': 1,
+                     'B-VisualWork': 3, 'B-PrivateCorp': 47, 'B-MusicalGRP': 28, 'I-MusicalWork': 18, 'B-Station': 41, 'B-Clothing': 64, 'B-OtherLOC': 45, 'I-VisualWork': 4}
 
 
 def parse_args():
@@ -33,7 +41,7 @@ def parse_args():
     p.add_argument('--dev', type=str, help='Path to the dev data.', default=None)
 
     p.add_argument('--out_dir', type=str, help='Output directory.', default='.')
-    p.add_argument('--iob_tagging', type=str, help='IOB tagging scheme', default='wnut')
+    p.add_argument('--iob_tagging', type=str, help='IOB tagging scheme', default='multiconer')
 
     p.add_argument('--max_instances', type=int, help='Maximum number of instances', default=-1)
     p.add_argument('--max_length', type=int, help='Maximum number of tokens per instance.', default=50)
@@ -62,6 +70,8 @@ def get_tagset(tagging_scheme):
         tags = {row['tag']: row['idx'] for idx, row in df.iterrows()}
         return tags
 
+    if 'multiconer' in tagging_scheme:
+        return multiconerii_iob
     if 'conll' in tagging_scheme:
         return conll_iob
     elif 'wnut' in tagging_scheme:
@@ -100,6 +110,7 @@ def get_reader(file_path, max_instances=-1, max_length=50, target_vocab=None, en
     if file_path is None:
         return None
     reader = CoNLLReader(max_instances=max_instances, max_length=max_length, target_vocab=target_vocab, encoder_model=encoder_model)
+    print(reader.all_ner_tags)
     reader.read_data(file_path)
 
     return reader
