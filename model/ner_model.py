@@ -153,14 +153,14 @@ class NERBaseAnnotator(pl.LightningModule):
     def perform_forward_step(self, batch, mode=''):
         tokens, tags, mask, token_mask, metadata = batch
         batch_size = tokens.size(0)
-
         embedded_text_input = self.encoder(input_ids=tokens, attention_mask=mask)
         embedded_text_input = embedded_text_input.last_hidden_state
         embedded_text_input = self.dropout(F.leaky_relu(embedded_text_input))
-
+        
         # project the token representation for classification
         token_scores = self.feedforward(embedded_text_input)
         token_scores = F.log_softmax(token_scores, dim=-1)
+        
 
         # compute the log-likelihood loss and compute the best NER annotation sequence
         output = self._compute_token_tags(token_scores=token_scores, mask=mask, tags=tags, metadata=metadata, batch_size=batch_size, mode=mode)
@@ -184,7 +184,7 @@ class NERBaseAnnotator(pl.LightningModule):
             output['token_tags'] = pred_tags
         return output
 
-    def predict_tags(self, batch, device='cuda:0'):
+    def predict_tags(self, batch, device='cuda'):
         tokens, tags, mask, token_mask, metadata = batch
         tokens, mask, token_mask, tags = tokens.to(device), mask.to(device), token_mask.to(device), tags.to(device)
         batch = tokens, tags, mask, token_mask, metadata

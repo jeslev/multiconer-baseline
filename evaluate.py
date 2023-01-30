@@ -13,7 +13,7 @@ if __name__ == '__main__':
 
     model, model_file = load_model(sg.model, tag_to_id=get_tagset(sg.iob_tagging))
     trainer = get_trainer(is_test=True)
-    out = trainer.test(model, test_dataloaders=DataLoader(test_data, batch_size=sg.batch_size, collate_fn=model.collate_batch))
+    out = trainer.test(model, dataloaders=DataLoader(test_data, batch_size=sg.batch_size, collate_fn=model.collate_batch, num_workers=1))
 
     # use pytorch lightnings saver here.
     eval_file = get_out_filename(sg.out_dir, model_file, prefix=sg.prefix)

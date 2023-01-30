@@ -19,3 +19,4 @@ if __name__ == '__main__':
 
     # use pytorch lightnings saver here.
     out_model_path = save_model(trainer=trainer, out_dir=out_dir_path, model_name=sg.model_name, timestamp=timestamp)
+    print(trainer.callback_metrics['val_micro@F1'].item())

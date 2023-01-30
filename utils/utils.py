@@ -59,6 +59,9 @@ def parse_args():
     p.add_argument('--lr', type=float, help='Learning rate', default=1e-5)
     p.add_argument('--dropout', type=float, help='Dropout rate', default=0.1)
 
+    p.add_argument('--optuna_db', type=str, help='Optuna db name', default='example.db')
+    p.add_argument('--optuna_name', type=str, help='Study name', default='example-study')
+    
     return p.parse_args()
 
 
@@ -110,7 +113,6 @@ def get_reader(file_path, max_instances=-1, max_length=50, target_vocab=None, en
     if file_path is None:
         return None
     reader = CoNLLReader(max_instances=max_instances, max_length=max_length, target_vocab=target_vocab, encoder_model=encoder_model)
-    print(reader.all_ner_tags)
     reader.read_data(file_path)
 
     return reader
@@ -144,20 +146,46 @@ def save_model(trainer, out_dir, model_name='', timestamp=None):
     return outfile
 
 
-def train_model(model, out_dir='', epochs=10, gpus=1):
-    trainer = get_trainer(gpus=gpus, out_dir=out_dir, epochs=epochs)
+# def get_trainer(gpus=4, is_test=False, out_dir=None, epochs=10):
+#     seed_everything(42)
+#     if is_test:
+#         return pl.Trainer(gpus=1) if torch.cuda.is_available() else pl.Trainer(val_check_interval=100)
+
+#     if torch.cuda.is_available():
+#         trainer = pl.Trainer(gpus=gpus, deterministic=False, max_epochs=epochs, callbacks=[get_model_earlystopping_callback()],
+#                              default_root_dir=out_dir, strategy='ddp', checkpoint_callback=False)
+#         trainer.callbacks.append(get_lr_logger())
+#     else:
+#         trainer = pl.Trainer(max_epochs=epochs, default_root_dir=out_dir)
+
+#     return trainer
+
+
+
+def train_model(model, out_dir='', epochs=10, gpus=1, trial=None):
+    trainer = get_trainer(gpus=gpus, out_dir=out_dir, epochs=epochs, trial=trial)
     trainer.fit(model)
     return trainer
 
 
-def get_trainer(gpus=4, is_test=False, out_dir=None, epochs=10):
+def get_trainer(gpus=4, is_test=False, out_dir=None, epochs=10, trial=None):
     seed_everything(42)
     if is_test:
         return pl.Trainer(gpus=1) if torch.cuda.is_available() else pl.Trainer(val_check_interval=100)
 
     if torch.cuda.is_available():
-        trainer = pl.Trainer(gpus=gpus, deterministic=True, max_epochs=epochs, callbacks=[get_model_earlystopping_callback()],
-                             default_root_dir=out_dir, distributed_backend='ddp', checkpoint_callback=False)
+        if trial is None:
+            trainer = pl.Trainer(gpus=gpus, deterministic=False, max_epochs=epochs, 
+                                 #callbacks=[PyTorchLightningPruningCallback(trial, monitor="val_micro@F1")],
+                                 callbacks=[get_model_earlystopping_callback()],
+                                 default_root_dir=out_dir, strategy='ddp', 
+                                 checkpoint_callback=False, enable_checkpointing=False)
+        else:
+            trainer = pl.Trainer(gpus=gpus, deterministic=False, max_epochs=epochs, 
+                                 callbacks=[PyTorchLightningPruningCallback(trial, monitor="micro@F1")],
+                                 #callbacks=[get_model_earlystopping_callback()],
+                                 default_root_dir=out_dir, strategy='ddp', 
+                                 checkpoint_callback=False, enable_checkpointing=False)
         trainer.callbacks.append(get_lr_logger())
     else:
         trainer = pl.Trainer(max_epochs=epochs, default_root_dir=out_dir)
@@ -196,3 +224,56 @@ def list_files(in_dir):
         for file in f:
             files.append(os.path.join(r, file))
     return files
+
+
+from pytorch_lightning import LightningModule
+from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import Callback
+import optuna
+
+class PyTorchLightningPruningCallback(Callback):
+    """PyTorch Lightning callback to prune unpromising trials.
+    See `the example <https://github.com/optuna/optuna-examples/blob/
+    main/pytorch/pytorch_lightning_simple.py>`__
+    if you want to add a pruning callback which observes accuracy.
+    Args:
+        trial:
+            A :class:`~optuna.trial.Trial` corresponding to the current evaluation of the
+            objective function.
+        monitor:
+            An evaluation metric for pruning, e.g., ``val_loss`` or
+            ``val_acc``. The metrics are obtained from the returned dictionaries from e.g.
+            ``pytorch_lightning.LightningModule.training_step`` or
+            ``pytorch_lightning.LightningModule.validation_epoch_end`` and the names thus depend on
+            how this dictionary is formatted.
+    """
+
+    def __init__(self, trial: optuna.trial.Trial, monitor: str) -> None:
+        super().__init__()
+
+        self._trial = trial
+        self.monitor = monitor
+
+    def on_validation_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        # When the trainer calls `on_validation_end` for sanity check,
+        # do not call `trial.report` to avoid calling `trial.report` multiple times
+        # at epoch 0. The related page is
+        # https://github.com/PyTorchLightning/pytorch-lightning/issues/1391.
+        if trainer.sanity_checking:
+            return
+
+        epoch = pl_module.current_epoch
+
+        current_score = trainer.callback_metrics.get(self.monitor)
+        if current_score is None:
+            message = (
+                "The metric '{}' is not in the evaluation logs for pruning. "
+                "Please make sure you set the correct metric name.".format(self.monitor)
+            )
+            warnings.warn(message)
+            return
+
+        self._trial.report(current_score, step=epoch)
+        if self._trial.should_prune():
+            message = "Trial was pruned at epoch {}.".format(epoch)
+            raise optuna.TrialPruned(message)
