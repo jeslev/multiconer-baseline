@@ -17,8 +17,9 @@ from log import logger
 from utils.metric import SpanF1
 from utils.reader_utils import extract_spans, get_tags
 
+from sentence_transformers import SentenceTransformer
 
-class NERBaseAnnotator(pl.LightningModule):
+class NERBaseAnnotatorv4(pl.LightningModule):
     def __init__(self,
                  train_data=None,
                  dev_data=None,
@@ -30,7 +31,7 @@ class NERBaseAnnotator(pl.LightningModule):
                  pad_token_id=1,
                  encoder_model='xlm-roberta-large',
                  num_gpus=1):
-        super(NERBaseAnnotator, self).__init__()
+        super(NERBaseAnnotatorv4, self).__init__()
 
         self.train_data = train_data
         self.dev_data = dev_data
@@ -46,8 +47,11 @@ class NERBaseAnnotator(pl.LightningModule):
         # set the default baseline model here
         self.pad_token_id = pad_token_id
 
+        model_save_path = '/users/cost/jlovonme/multiconer-baseline_v2/output/robl-training-2023-02-01_21-59-49'
+        model_save_path = '/users/cost/jlovonme/multiconer-baseline_v2/output/es-robl-training-2023-02-02_02-08-52'
+        model = SentenceTransformer(model_save_path)
         self.encoder_model = encoder_model
-        self.encoder = AutoModel.from_pretrained(encoder_model, return_dict=True)
+        self.encoder = model[0].auto_model#AutoModel.from_pretrained(encoder_model, return_dict=True)
 
         self.feedforward = nn.Linear(in_features=self.encoder.config.hidden_size, out_features=self.target_size)
 

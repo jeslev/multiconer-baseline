@@ -18,7 +18,9 @@ from utils.metric import SpanF1
 from utils.reader_utils import extract_spans, get_tags
 
 
-class NERBaseAnnotator(pl.LightningModule):
+# Aligns and sums subtokens to input
+
+class NERAlignv2Annotator(pl.LightningModule):
     def __init__(self,
                  train_data=None,
                  dev_data=None,
@@ -30,7 +32,7 @@ class NERBaseAnnotator(pl.LightningModule):
                  pad_token_id=1,
                  encoder_model='xlm-roberta-large',
                  num_gpus=1):
-        super(NERBaseAnnotator, self).__init__()
+        super(NERAlignv2Annotator, self).__init__()
 
         self.train_data = train_data
         self.dev_data = dev_data
@@ -47,6 +49,7 @@ class NERBaseAnnotator(pl.LightningModule):
         self.pad_token_id = pad_token_id
 
         self.encoder_model = encoder_model
+        self.aux_encoder = AutoModel.from_pretrained(encoder_model, return_dict=True)
         self.encoder = AutoModel.from_pretrained(encoder_model, return_dict=True)
 
         self.feedforward = nn.Linear(in_features=self.encoder.config.hidden_size, out_features=self.target_size)
@@ -78,7 +81,11 @@ class NERBaseAnnotator(pl.LightningModule):
         mask_tensor = torch.zeros(size=(len(tokens), max_len), dtype=torch.bool)
         token_masks_tensor = torch.zeros(size=(len(tokens), max_len), dtype=torch.bool)
 
-        
+        if len(batch_)==6: # Handle ners positions
+            recognized_ners = batch_[5]
+        else:
+            recognized_ners = None
+
         for i in range(len(tokens)):
             tokens_ = tokens[i]
             seq_len = len(tokens_)
@@ -88,7 +95,7 @@ class NERBaseAnnotator(pl.LightningModule):
             mask_tensor[i, :seq_len] = masks[i]
             token_masks_tensor[i, :seq_len] = token_masks[i]
 
-        return token_tensor, tag_tensor, mask_tensor, token_masks_tensor, gold_spans
+        return token_tensor, tag_tensor, mask_tensor, token_masks_tensor, gold_spans, recognized_ners
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=0.01)
@@ -136,7 +143,7 @@ class NERBaseAnnotator(pl.LightningModule):
         return output
 
     def training_step(self, batch, batch_idx):
-        output = self.perform_forward_step(batch)
+        output = self.perform_forward_step(batch, train=True)
         self.log_metrics(output['results'], loss=output['loss'], suffix='', on_step=True, on_epoch=False)
         return output
 
@@ -151,12 +158,33 @@ class NERBaseAnnotator(pl.LightningModule):
 
         self.log(suffix + 'loss', loss, on_step=on_step, on_epoch=on_epoch, prog_bar=True, logger=True)
 
-    def perform_forward_step(self, batch, mode=''):
-        tokens, tags, mask, token_mask, metadata = batch
+    def perform_forward_step(self, batch, mode='', train=False):
+        tokens, tags, mask, token_mask, metadata, recognized_ners = batch
         batch_size = tokens.size(0)
 
         embedded_text_input = self.encoder(input_ids=tokens, attention_mask=mask)
         embedded_text_input = embedded_text_input.last_hidden_state
+
+        # Handle recognized ners
+        if train: #only for training
+            ner_tensor = torch.zeros(size=embedded_text_input.size(), dtype=torch.float, device=self.device)
+            idx_in_batch = 0
+            #print("Rec ner", len(recognized_ners), len(recognized_ners[0]))
+            for definitions_tokens, positions_rep in recognized_ners:
+                # Get representations
+                model_rep = self.aux_encoder(**definitions_tokens).last_hidden_state.detach()
+                #print(model_rep.shape)
+                for tmp_idx, position_rep in  enumerate(positions_rep): # batch is the # of found NERs in phrase
+                    start_idx, end_idx = position_rep
+                    ner_rep = model_rep[tmp_idx,0,:] # only cls (1,1,hid_dim)= (hid_dim)
+                    #print(ner_rep.shape, ner_tensor.shape, tokens.size())
+                    #print(ner_tensor[idx_in_batch,start_idx:end_idx,:].shape)
+                    ner_tensor[idx_in_batch,start_idx:end_idx,:] = ner_rep.repeat(end_idx-start_idx,1) #(hid_dim) -> (len,hid_dim)
+                    
+                idx_in_batch += 1
+            embedded_text_input += ner_tensor
+            del ner_tensor
+        ###
 
         embedded_text_input = self.dropout(F.leaky_relu(embedded_text_input))
         
@@ -166,8 +194,8 @@ class NERBaseAnnotator(pl.LightningModule):
         
 
         # compute the log-likelihood loss and compute the best NER annotation sequence
-        #print(metadata)
         output = self._compute_token_tags(token_scores=token_scores, mask=mask, tags=tags, metadata=metadata, batch_size=batch_size, mode=mode)
+        del tokens, tags, mask, token_mask, metadata, recognized_ners
         return output
 
     def _compute_token_tags(self, token_scores, mask, tags, metadata, batch_size, mode=''):
@@ -183,16 +211,15 @@ class NERBaseAnnotator(pl.LightningModule):
 
         self.span_f1(pred_results, metadata)
         output = {"loss": loss, "results": self.span_f1.get_metric()}
-        
+
         if mode == 'predict':
             output['token_tags'] = pred_tags
-        #print(pred_tags)
         return output
 
     def predict_tags(self, batch, device='cuda'):
-        tokens, tags, mask, token_mask, metadata = batch
+        tokens, tags, mask, token_mask, metadata, recognized_ners = batch
         tokens, mask, token_mask, tags = tokens.to(device), mask.to(device), token_mask.to(device), tags.to(device)
-        batch = tokens, tags, mask, token_mask, metadata
+        batch = tokens, tags, mask, token_mask, metadata, recognized_ners
 
         pred_tags = self.perform_forward_step(batch, mode='predict')['token_tags']
         tag_results = [compress(pred_tags_, mask_) for pred_tags_, mask_ in zip(pred_tags, token_mask)]

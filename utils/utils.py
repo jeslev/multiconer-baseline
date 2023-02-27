@@ -11,6 +11,11 @@ from pytorch_lightning.callbacks import LearningRateMonitor, EarlyStopping
 
 from log import logger
 from model.ner_model import NERBaseAnnotator
+from model.ner_model_sum_align_tok import NERAlignv1Annotator
+from model.ner_model_cls_align import NERAlignv2Annotator
+from model.ner_align_tok_trans import NERAlignv3Annotator
+from model.ner_model_concat import NERBaseAnnotatorv4
+from model.ner_model_v5 import NERAlignv5Annotator
 from utils.reader import CoNLLReader
 
 conll_iob = {'B-ORG': 0, 'I-ORG': 1, 'B-MISC': 2, 'I-MISC': 3, 'B-LOC': 4, 'I-LOC': 5, 'B-PER': 6, 'I-PER': 7, 'O': 8}
@@ -31,8 +36,8 @@ multiconerii_iob = {'I-Food': 40, 'I-Athlete': 16, 'I-MusicalGRP': 29, 'B-Facili
                      'B-OtherPER': 0, 'I-ArtWork': 38, 'B-Scientist': 22, 'B-MedicalProcedure': 35, 'B-Drink': 62, 'I-Facility': 21, 'B-AnatomicalStructure': 57, 'O': 2, 'I-MedicalProcedure': 36,
                      'B-Medication/Vaccine': 53, 'I-SportsManager': 31, 'I-AnatomicalStructure': 58, 'I-Clothing': 66, 'I-Symptom': 59, 'B-HumanSettlement': 8, 'I-Scientist': 23, 'B-Software': 10,
                      'B-SportsGRP': 27, 'I-PublicCorp': 33, 'B-CarManufacturer': 44, 'I-WrittenWork': 12, 'B-Symptom': 54, 'B-AerospaceManufacturer': 60, 'B-OtherPROD': 34, 'I-OtherPER': 1,
-                     'B-VisualWork': 3, 'B-PrivateCorp': 47, 'B-MusicalGRP': 28, 'I-MusicalWork': 18, 'B-Station': 41, 'B-Clothing': 64, 'B-OtherLOC': 45, 'I-VisualWork': 4}
-
+                     'B-VisualWork': 3, 'B-PrivateCorp': 47, 'B-MusicalGRP': 28, 'I-MusicalWork': 18, 'B-Station': 41, 'B-Clothing': 64, 'B-OtherLOC': 45, 'I-VisualWork': 4, 'B-OtherCW': 67,
+                    'I-OtherCW': 68, 'B-OtherCorp': 69, 'I-OtherCorp': 70, 'B-TechCORP': 71, 'I-TechCORP':72 }
 
 def parse_args():
     p = argparse.ArgumentParser(description='Model configuration.', add_help=False)
@@ -61,6 +66,7 @@ def parse_args():
 
     p.add_argument('--optuna_db', type=str, help='Optuna db name', default='example.db')
     p.add_argument('--optuna_name', type=str, help='Study name', default='example-study')
+    p.add_argument('--version_model', type=str, help='Version model tag', default='v0')
     
     return p.parse_args()
 
@@ -109,26 +115,51 @@ def write_eval_performance(eval_performance, out_file):
     logger.info('Finished writing evaluation performance for {}'.format(out_file))
 
 
-def get_reader(file_path, max_instances=-1, max_length=50, target_vocab=None, encoder_model='xlm-roberta-large'):
+def get_reader(file_path, max_instances=-1, max_length=50, target_vocab=None, encoder_model='xlm-roberta-large', train=False):
     if file_path is None:
         return None
     reader = CoNLLReader(max_instances=max_instances, max_length=max_length, target_vocab=target_vocab, encoder_model=encoder_model)
-    reader.read_data(file_path)
+    reader.read_data(file_path, train=train)
 
     return reader
 
 
-def create_model(train_data, dev_data, tag_to_id, batch_size=64, dropout_rate=0.1, stage='fit', lr=1e-5, encoder_model='xlm-roberta-large', num_gpus=1):
-    return NERBaseAnnotator(train_data=train_data, dev_data=dev_data, tag_to_id=tag_to_id, batch_size=batch_size, stage=stage, encoder_model=encoder_model,
+def create_model(train_data, dev_data, tag_to_id, batch_size=64, dropout_rate=0.1, stage='fit', lr=1e-5, encoder_model='xlm-roberta-large', num_gpus=1,
+                model_type='v0'):
+    if model_type=='v0':
+        print("Model", model_type)
+        return NERBaseAnnotator(train_data=train_data, dev_data=dev_data, tag_to_id=tag_to_id, batch_size=batch_size, stage=stage, encoder_model=encoder_model,
                             dropout_rate=dropout_rate, lr=lr, pad_token_id=train_data.pad_token_id, num_gpus=num_gpus)
+    elif model_type=='v1':
+        return NERAlignv1Annotator(train_data=train_data, dev_data=dev_data, tag_to_id=tag_to_id, batch_size=batch_size, stage=stage, encoder_model=encoder_model, dropout_rate=dropout_rate, lr=lr, pad_token_id=train_data.pad_token_id, num_gpus=num_gpus)
+    elif model_type=='v2':
+        return NERAlignv2Annotator(train_data=train_data, dev_data=dev_data, tag_to_id=tag_to_id, batch_size=batch_size, stage=stage, encoder_model=encoder_model, dropout_rate=dropout_rate, lr=lr, pad_token_id=train_data.pad_token_id, num_gpus=num_gpus)
+    elif model_type=='v3':
+        return NERAlignv3Annotator(train_data=train_data, dev_data=dev_data, tag_to_id=tag_to_id, batch_size=batch_size, stage=stage, encoder_model=encoder_model, dropout_rate=dropout_rate, lr=lr, pad_token_id=train_data.pad_token_id, num_gpus=num_gpus)
+    elif model_type=='v4':
+        return NERBaseAnnotatorv4(train_data=train_data, dev_data=dev_data, tag_to_id=tag_to_id, batch_size=batch_size, stage=stage, encoder_model=encoder_model, dropout_rate=dropout_rate, lr=lr, pad_token_id=train_data.pad_token_id, num_gpus=num_gpus)
+    elif model_type=='v5':
+        return NERAlignv5Annotator(train_data=train_data, dev_data=dev_data, tag_to_id=tag_to_id, batch_size=batch_size, stage=stage, encoder_model=encoder_model, dropout_rate=dropout_rate, lr=lr, pad_token_id=train_data.pad_token_id, num_gpus=num_gpus)
+    
+        
 
-
-def load_model(model_file, tag_to_id=None, stage='test'):
+def load_model(model_file, tag_to_id=None, stage='test', model_type='v0'):
     if ~os.path.isfile(model_file):
         model_file = get_models_for_evaluation(model_file)
 
     hparams_file = model_file[:model_file.rindex('checkpoints/')] + '/hparams.yaml'
-    model = NERBaseAnnotator.load_from_checkpoint(model_file, hparams_file=hparams_file, stage=stage, tag_to_id=tag_to_id)
+    if model_type=='v0':
+        model = NERBaseAnnotator.load_from_checkpoint(model_file, hparams_file=hparams_file, stage=stage, tag_to_id=tag_to_id)
+    elif model_type=='v1':
+        model = NERAlignv1Annotator.load_from_checkpoint(model_file, hparams_file=hparams_file, stage=stage, tag_to_id=tag_to_id)
+    elif model_type=='v2':
+        model = NERAlignv2Annotator.load_from_checkpoint(model_file, hparams_file=hparams_file, stage=stage, tag_to_id=tag_to_id)
+    elif model_type=='v3':
+        model = NERAlignv3Annotator.load_from_checkpoint(model_file, hparams_file=hparams_file, stage=stage, tag_to_id=tag_to_id)
+    elif model_type=='v4':
+        model = NERBaseAnnotatorv4.load_from_checkpoint(model_file, hparams_file=hparams_file, stage=stage, tag_to_id=tag_to_id)
+    elif model_type=='v5':
+        model = NERAlignv5Annotator.load_from_checkpoint(model_file, hparams_file=hparams_file, stage=stage, tag_to_id=tag_to_id)
     model.stage = stage
     return model, model_file
 
@@ -175,6 +206,7 @@ def get_trainer(gpus=4, is_test=False, out_dir=None, epochs=10, trial=None):
 
     if torch.cuda.is_available():
         if trial is None:
+            print("Here is correct")
             trainer = pl.Trainer(gpus=gpus, deterministic=False, max_epochs=epochs, 
                                  #callbacks=[PyTorchLightningPruningCallback(trial, monitor="val_micro@F1")],
                                  callbacks=[get_model_earlystopping_callback()],
@@ -182,7 +214,7 @@ def get_trainer(gpus=4, is_test=False, out_dir=None, epochs=10, trial=None):
                                  checkpoint_callback=False, enable_checkpointing=False)
         else:
             trainer = pl.Trainer(gpus=gpus, deterministic=False, max_epochs=epochs, 
-                                 callbacks=[PyTorchLightningPruningCallback(trial, monitor="micro@F1")],
+                                 callbacks=[PyTorchLightningPruningCallback(trial, monitor="val_loss")],
                                  #callbacks=[get_model_earlystopping_callback()],
                                  default_root_dir=out_dir, strategy='ddp', 
                                  checkpoint_callback=False, enable_checkpointing=False)
@@ -206,6 +238,13 @@ def get_model_earlystopping_callback():
         verbose=True,
         mode='min'
     )
+    #es_clb = EarlyStopping(
+    #    monitor='val_micro@F1',
+    #    min_delta=0.1,
+    #    patience=2,
+    #    verbose=True,
+    #    mode='max'
+    #)
     return es_clb
 
 
