@@ -10,51 +10,64 @@ import os
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-dictionary_categories = {
-    # Medical
-    "Disease": "A disease is an impairment of health or a condition of abnormal functioning. A disease is a medical term.",
-    "MedicalProcedure": "A medical procedure is employed by medical or dental practitioners. A medical procedure is a medical term.",
-    "AnatomicalStructure": "An anatomical structure is a particular complex anatomical part of a living thing and its construction and arrangement. An anatomical structure is a medical term.",
-    "Medication/Vaccine": "A medication or vaccine is an immunogen consisting of a suspension of weakened or dead pathogenic cells injected in order to stimulate the production of antibodies. A medication or vacine is a medical term.",
-    "Symptom": "A symptom is any sensation or change in bodily function that is experienced by a patient and is associated with a particular disease. A symptom is a medical term.",
-    # Location
-    "Facility": "A facility is a building or place that provides a particular service or is used for a particular industry. A facility is a location.",
-    "HumanSettlement": "A human settlement is community of people smaller than a town. A human settlement is a location.",
-    "Station": "A station is a facility equipped with special equipment and personnel for a particular purpose. A station is a location.",
-    "OtherLOC": "A location is a determination of the place where something is.",
-    # Person
-    "Politician": "A politician is a person active in party politics. A politician is a person.",
-    "SportsManager": "A sports manager is someone in charge of training an athlete or a team. A sports manager is a person.",
-    "Cleric": "A cleric is a clergyman or other person in religious orders. A cleric is a person.",
-    "Artist": "An artist is a person whose creative work shows sensitivity and imagination. An artist is a person.",
-    "Athlete": "An athlete is a person trained to compete in sports. An athlete is a person.",
-    "OtherPER": "A person includes a legendary person whose existence is questionable, and a common name or nickname that constitutes the distinctive designation of a person.",
-    "Scientist": "A scientist is a person with advanced knowledge of one or more sciences. A scientist is a person.",
-    # Product
-    "Vehicle": "A vehicle is a conveyance that transports people or objects. A vehicle is a product.",
-    "Food": "The food is any substance that can be metabolized by an animal to give energy and build tissue. The food is a product.",
-    "Drink": "A drink is a single serving of a beverage. A drink is a product.",
-    "OtherPROD": "A product is the name of a thing or abstract concept produced by the intent of human beings.",
-    "Clothing": "A clothing is a covering designed to be worn on a person's body. A clothing is a product.",
-    # Creative Work
-    "MusicalWork": "A musical work is a play or film whose action and dialogue is interspersed with singing and dancing. A musical work is a creative work.",
-    "ArtWork": "An art work is photograph or other visual representation in a printed publication. An art work is a creative work.",
-    "WrittenWork": "A written work is something written by hand. A written work is a creative work.",
-    "VisualWork": "A visual work is something related to or using sigh. A visual work is a creative work.",
-    "Software": "A software is a written programs or procedures and associated documentation pertaining to the operation of a computer system. A software is a creative work.",
-    "OtherCW": "A creative work is a manifestation of creative effort including fine artwork, dance, writing , filmmaking, and composition.",
-    # Group
-    "PublicCorp": "A public corporation is a company, such as a national railway or a mail service, that is owned and managed by the government. A public corporation is a group.",
-    "ORG": "An organization is a group of people who work together. An organization is a group.",
-    "SportsGRP": "A sports group is a group of individuals who play sorts, usually team sports, on the same team. A sports group is a group.",
-    "CarManufacturer": "A car manufacturer is a business engaged in the manufacture of automobiles. A car manufacturer is a group.",
-    "AerospaceManufacturer": "An aerospace manufacturer is a company or individual involved in designing, building, testing, selling, and maintaining aircraft, missiles, rockets, or spacecraft. An aerospace manufacturer is a group.",
-    "PrivateCorp": "A private corporation is a company that is owned by one person or a small group of people, for example a family, and whose shares are not traded on a stock market. A private corporation is a group.",
-    "MusicalGRP": "A musical group is a group of people who perform instrumental and or vocal music, with the ensemble typically known by a distinct name. A musical group is a group.",
-    "OtherCORP": "A group is a number of persons or things that are located, gathered, or classed together.",
-    "TechCORP": "A technological corporation is a company that focuses primarily on the manufacturing, research and development of computing, telecommunication and consumer electronics. A techonlogical coporation is a group.",
-}
+# dictionary_categories = {
+#     # Medical
+#     "Disease": "A disease is an impairment of health or a condition of abnormal functioning. A disease is a medical term.",
+#     "MedicalProcedure": "A medical procedure is employed by medical or dental practitioners. A medical procedure is a medical term.",
+#     "AnatomicalStructure": "An anatomical structure is a particular complex anatomical part of a living thing and its construction and arrangement. An anatomical structure is a medical term.",
+#     "Medication/Vaccine": "A medication or vaccine is an immunogen consisting of a suspension of weakened or dead pathogenic cells injected in order to stimulate the production of antibodies. A medication or vacine is a medical term.",
+#     "Symptom": "A symptom is any sensation or change in bodily function that is experienced by a patient and is associated with a particular disease. A symptom is a medical term.",
+#     # Location
+#     "Facility": "A facility is a building or place that provides a particular service or is used for a particular industry. A facility is a location.",
+#     "HumanSettlement": "A human settlement is community of people smaller than a town. A human settlement is a location.",
+#     "Station": "A station is a facility equipped with special equipment and personnel for a particular purpose. A station is a location.",
+#     "OtherLOC": "A location is a determination of the place where something is.",
+#     # Person
+#     "Politician": "A politician is a person active in party politics. A politician is a person.",
+#     "SportsManager": "A sports manager is someone in charge of training an athlete or a team. A sports manager is a person.",
+#     "Cleric": "A cleric is a clergyman or other person in religious orders. A cleric is a person.",
+#     "Artist": "An artist is a person whose creative work shows sensitivity and imagination. An artist is a person.",
+#     "Athlete": "An athlete is a person trained to compete in sports. An athlete is a person.",
+#     "OtherPER": "A person includes a legendary person whose existence is questionable, and a common name or nickname that constitutes the distinctive designation of a person.",
+#     "Scientist": "A scientist is a person with advanced knowledge of one or more sciences. A scientist is a person.",
+#     # Product
+#     "Vehicle": "A vehicle is a conveyance that transports people or objects. A vehicle is a product.",
+#     "Food": "The food is any substance that can be metabolized by an animal to give energy and build tissue. The food is a product.",
+#     "Drink": "A drink is a single serving of a beverage. A drink is a product.",
+#     "OtherPROD": "A product is the name of a thing or abstract concept produced by the intent of human beings.",
+#     "Clothing": "A clothing is a covering designed to be worn on a person's body. A clothing is a product.",
+#     # Creative Work
+#     "MusicalWork": "A musical work is a play or film whose action and dialogue is interspersed with singing and dancing. A musical work is a creative work.",
+#     "ArtWork": "An art work is photograph or other visual representation in a printed publication. An art work is a creative work.",
+#     "WrittenWork": "A written work is something written by hand. A written work is a creative work.",
+#     "VisualWork": "A visual work is something related to or using sigh. A visual work is a creative work.",
+#     "Software": "A software is a written programs or procedures and associated documentation pertaining to the operation of a computer system. A software is a creative work.",
+#     "OtherCW": "A creative work is a manifestation of creative effort including fine artwork, dance, writing , filmmaking, and composition.",
+#     # Group
+#     "PublicCorp": "A public corporation is a company, such as a national railway or a mail service, that is owned and managed by the government. A public corporation is a group.",
+#     "ORG": "An organization is a group of people who work together. An organization is a group.",
+#     "SportsGRP": "A sports group is a group of individuals who play sorts, usually team sports, on the same team. A sports group is a group.",
+#     "CarManufacturer": "A car manufacturer is a business engaged in the manufacture of automobiles. A car manufacturer is a group.",
+#     "AerospaceManufacturer": "An aerospace manufacturer is a company or individual involved in designing, building, testing, selling, and maintaining aircraft, missiles, rockets, or spacecraft. An aerospace manufacturer is a group.",
+#     "PrivateCorp": "A private corporation is a company that is owned by one person or a small group of people, for example a family, and whose shares are not traded on a stock market. A private corporation is a group.",
+#     "MusicalGRP": "A musical group is a group of people who perform instrumental and or vocal music, with the ensemble typically known by a distinct name. A musical group is a group.",
+#     "OtherCORP": "A group is a number of persons or things that are located, gathered, or classed together.",
+#     "TechCORP": "A technological corporation is a company that focuses primarily on the manufacturing, research and development of computing, telecommunication and consumer electronics. A techonlogical coporation is a group.",
+# }
 
+dictionary_categories = {
+    # Location
+    "LOC": "A location is a determination of the place where something is. There are different types of locations, such as facility, station or human settlement.",
+    # Person
+    "PER": "A person is a human being. A person includes a legendary person whose existence is questionable, and a common name or nickname that constitutes the distinctive designation of a person.",
+    # Product
+    "PROD": "A product is the name of a thing or abstract concept produced by the intent of human beings. A product also refers to commodities offered for sale.",
+    # Creative Work
+    "CW": "A creative work is a manifestation of creative effort including fine artwork (sculpture, paintings, drawing, sketching, performance art), dance, writing (literature), filmmaking, and composition.",
+    # Group
+    "GRP" : "A group is a number of persons or things that are located, gathered, or classed together. A group also refers to a cultural group, ethnic group, social group or an organization.",
+    "CORP": "A corporation is an organization, usually a group of people or a company, authorized by the state to act as a single entity (a legal entity recognized by private and public law; a legal person in legal context) and recognized as such in law for certain purposes.",
+}
 
 dictionary_categories_es = {
     # Medical

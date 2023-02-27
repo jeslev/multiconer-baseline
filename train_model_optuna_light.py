@@ -21,7 +21,7 @@ def objective(trial):
 
     
     dropout = trial.suggest_uniform("dropout", 0.0, 0.5)
-    batch_size=4#trial.suggest_categorical('batch',[8,16])
+    batch_size=8#trial.suggest_categorical('batch',[8,16])
     lr = trial.suggest_float("lr", 1e-6, 0.1, log=True)
     print("Params Dropout", dropout, " Batch size", batch_size, " LR:", lr)
     model = create_model(train_data=train_data, dev_data=dev_data, tag_to_id=train_data.get_target_vocab(),
