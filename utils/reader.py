@@ -260,8 +260,8 @@ class CoNLLReader(Dataset):
             # Gather mentions and definitions
             instances_definitions = []
             if train:
-                #input_phrases = [" ".join(g[0])+". "+dictionary_categories.get(g[-1]) for g in gathered_ners]
-                input_phrases = [" ".join(g[0])+". "+dictionary_categories_es.get(g[-1]) for g in gathered_ners] # spanish
+                input_phrases = [" ".join(g[0])+". "+dictionary_categories.get(g[-1]) for g in gathered_ners]
+                #input_phrases = [" ".join(g[0])+". "+dictionary_categories_es.get(g[-1]) for g in gathered_ners] # spanish
                 
                 input_tokens = self.tokenizer(input_phrases, padding=True, return_tensors='pt')
                 positions_rep = [(g[1],g[2]) for g in gathered_ners]
