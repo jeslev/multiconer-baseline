@@ -69,6 +69,22 @@ dictionary_categories = {
     "CORP": "A corporation is an organization, usually a group of people or a company, authorized by the state to act as a single entity (a legal entity recognized by private and public law; a legal person in legal context) and recognized as such in law for certain purposes.",
 }
 
+dictionary_categories = {
+    # Location
+    "LOC": "Una localización es la determinación del lugar donde se encuentra algo. Hay distintos tipos de ubicaciones, como instalaciones, estaciones o asentamientos humanos.",
+    # Person
+    "PER": "Una persona es un ser humano. Una persona incluye una persona legendaria cuya existencia es cuestionable, y un nombre común o apodo que constituye la designación distintiva de una persona.",
+    # Product
+    "PROD": "Un producto es el nombre de una cosa o concepto abstracto producido por la intención del ser humano. Un producto también se refiere a las mercancías puestas a la venta.",
+    # Creative Work
+    "CW": "Una obra creativa es una manifestación de esfuerzo creativo que incluye las bellas artes (escultura, pintura, dibujo, esbozo, arte escénico), la danza, la escritura (literatura), el cine y la composición.",
+    # Group
+    "GRP" : "Un grupo es un número de personas o cosas que se encuentran, reúnen o clasifican juntas. Un grupo también se refiere a un grupo cultural, un grupo étnico, un grupo social o una organización.",
+    "CORP": "Una sociedad anónima es una organización, normalmente un grupo de personas o una empresa, autorizada por el Estado para actuar como una entidad única (una persona jurídica reconocida por el derecho privado y público; una persona jurídica en el contexto legal) y reconocida como tal por la ley a determinados efectos.",
+}
+
+
+
 dictionary_categories_es = {
     # Medical
     "Disease": "Una enfermedad es una alteración de la salud o una condición de funcionamiento anormal. Una enfermedad es un término médico.",
@@ -260,19 +276,21 @@ class CoNLLReader(Dataset):
             # Gather mentions and definitions
             instances_definitions = []
             if train:
-                #input_phrases = [" ".join(g[0])+". "+dictionary_categories.get(g[-1]) for g in gathered_ners]
-                input_phrases = [" ".join(g[0])+". "+dictionary_categories_es.get(g[-1]) for g in gathered_ners] # spanish
+                input_phrases = [" ".join(g[0])+". "+dictionary_categories.get(g[-1]) for g in gathered_ners]
+                #input_phrases = [" ".join(g[0])+". "+dictionary_categories_es.get(g[-1]) for g in gathered_ners] # spanish
                 
-                input_tokens = self.tokenizer(input_phrases, padding=True, return_tensors='pt')
-                positions_rep = [(g[1],g[2]) for g in gathered_ners]
+                instances_definitions = [None,None]
+                if len(input_phrases)>0:
+                    input_tokens = self.tokenizer(input_phrases, padding=True, return_tensors='pt')
+                    positions_rep = [(g[1],g[2]) for g in gathered_ners]
 
-                # for (ini_id,fin_id), name in gold_spans_.items():
-                #     if name=='O':
-                #         continue
-                #     def_category = dictionary_categories.get(name,None)
-                #     if def_category is None:
-                #         print("Not definition found for category!")
-                instances_definitions = [input_tokens, positions_rep]
+                    # for (ini_id,fin_id), name in gold_spans_.items():
+                    #     if name=='O':
+                    #         continue
+                    #     def_category = dictionary_categories.get(name,None)
+                    #     if def_category is None:
+                    #         print("Not definition found for category!")
+                    instances_definitions = [input_tokens, positions_rep]
                 self.instances.append((tokens_tensor, mask_rep, token_masks_rep, gold_spans_, tag_tensor, instances_definitions))
             else:
                 #input_phrases = [" ".join(fields[0]+" .")]

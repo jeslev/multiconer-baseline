@@ -159,7 +159,7 @@ class NERAlignv1Annotator(pl.LightningModule):
         self.log(suffix + 'loss', loss, on_step=on_step, on_epoch=on_epoch, prog_bar=True, logger=True)
 
     def perform_forward_step(self, batch, mode='', train=False):
-        b = 0.1
+        b = 0.15
         tokens, tags, mask, token_mask, metadata, recognized_ners = batch
         batch_size = tokens.size(0)
 
@@ -171,7 +171,10 @@ class NERAlignv1Annotator(pl.LightningModule):
         if train: #only for training
             idx_in_batch = 0
             #print("Rec ner", len(recognized_ners), len(recognized_ners[0]))
+                
             for definitions_tokens, positions_rep in recognized_ners:
+                if positions_rep is None: # if empty ners
+                    continue
                 # Get representations
                 model_rep = self.aux_encoder(**definitions_tokens).last_hidden_state.detach()
                 #print(model_rep.shape)
@@ -181,7 +184,7 @@ class NERAlignv1Annotator(pl.LightningModule):
                     #print(ner_rep.shape, ner_tensor.shape, tokens.size())
                     #print(ner_tensor[idx_in_batch,start_idx:end_idx,:].shape)
                     ner_tensor[idx_in_batch,start_idx:end_idx,:] = ner_rep
-                    
+
                 idx_in_batch += 1
             embedded_text_input = ((1.0-b)*embedded_text_input)+(b*ner_tensor)
         ###
