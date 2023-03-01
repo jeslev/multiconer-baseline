@@ -31,7 +31,8 @@ class NERAlignv1Annotator(pl.LightningModule):
                  stage='fit',
                  pad_token_id=1,
                  encoder_model='xlm-roberta-large',
-                 num_gpus=1):
+                 num_gpus=1,
+                 b=0.0):
         super(NERAlignv1Annotator, self).__init__()
 
         self.train_data = train_data
@@ -58,6 +59,7 @@ class NERAlignv1Annotator(pl.LightningModule):
 
         self.lr = lr
         self.dropout = nn.Dropout(dropout_rate)
+        self.b = b
 
         self.span_f1 = SpanF1()
         self.setup_model(self.stage)
@@ -68,7 +70,6 @@ class NERAlignv1Annotator(pl.LightningModule):
             # Calculate total steps
             train_batches = len(self.train_data) // (self.batch_size * self.num_gpus)
             self.total_steps = 50 * train_batches
-
             self.warmup_steps = int(self.total_steps * 0.01)
 
     def collate_batch(self, batch):
@@ -159,7 +160,7 @@ class NERAlignv1Annotator(pl.LightningModule):
         self.log(suffix + 'loss', loss, on_step=on_step, on_epoch=on_epoch, prog_bar=True, logger=True)
 
     def perform_forward_step(self, batch, mode='', train=False):
-        b = 0.15
+
         tokens, tags, mask, token_mask, metadata, recognized_ners = batch
         batch_size = tokens.size(0)
 
@@ -186,7 +187,7 @@ class NERAlignv1Annotator(pl.LightningModule):
                     ner_tensor[idx_in_batch,start_idx:end_idx,:] = ner_rep
 
                 idx_in_batch += 1
-            embedded_text_input = ((1.0-b)*embedded_text_input)+(b*ner_tensor)
+            embedded_text_input = ((1.0-self.b)*embedded_text_input)+(self.b*ner_tensor)
         ###
 
         embedded_text_input = self.dropout(F.leaky_relu(embedded_text_input))

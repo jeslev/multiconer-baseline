@@ -64,6 +64,10 @@ def parse_args():
     p.add_argument('--lr', type=float, help='Learning rate', default=1e-5)
     p.add_argument('--dropout', type=float, help='Dropout rate', default=0.1)
 
+    p.add_argument('--b', type=float, help='Value of b hyperparam', default=0.15)
+    p.add_argument('--lang', type=str, help='Fix the definitions language', default='EN_1')
+    p.add_argument('--seed', type=int, help='Random seed', default=42)
+
     p.add_argument('--optuna_db', type=str, help='Optuna db name', default='example.db')
     p.add_argument('--optuna_name', type=str, help='Study name', default='example-study')
     p.add_argument('--version_model', type=str, help='Version model tag', default='v0')
@@ -115,23 +119,26 @@ def write_eval_performance(eval_performance, out_file):
     logger.info('Finished writing evaluation performance for {}'.format(out_file))
 
 
-def get_reader(file_path, max_instances=-1, max_length=50, target_vocab=None, encoder_model='xlm-roberta-large', train=False):
+def get_reader(file_path, max_instances=-1, max_length=50, target_vocab=None, encoder_model='xlm-roberta-large',
+               train=False, lang='EN_1'):
     if file_path is None:
         return None
     reader = CoNLLReader(max_instances=max_instances, max_length=max_length, target_vocab=target_vocab, encoder_model=encoder_model)
-    reader.read_data(file_path, train=train)
+    reader.read_data(file_path, train=train, lang=lang)
 
     return reader
 
 
-def create_model(train_data, dev_data, tag_to_id, batch_size=64, dropout_rate=0.1, stage='fit', lr=1e-5, encoder_model='xlm-roberta-large', num_gpus=1,
-                model_type='v0'):
+def create_model(train_data, dev_data, tag_to_id, batch_size=64, dropout_rate=0.1, stage='fit', lr=1e-5,
+                 encoder_model='xlm-roberta-large', num_gpus=1, model_type='v0', b=0.0):
     if model_type=='v0':
         print("Model", model_type)
         return NERBaseAnnotator(train_data=train_data, dev_data=dev_data, tag_to_id=tag_to_id, batch_size=batch_size, stage=stage, encoder_model=encoder_model,
                             dropout_rate=dropout_rate, lr=lr, pad_token_id=train_data.pad_token_id, num_gpus=num_gpus)
     elif model_type=='v1':
-        return NERAlignv1Annotator(train_data=train_data, dev_data=dev_data, tag_to_id=tag_to_id, batch_size=batch_size, stage=stage, encoder_model=encoder_model, dropout_rate=dropout_rate, lr=lr, pad_token_id=train_data.pad_token_id, num_gpus=num_gpus)
+        return NERAlignv1Annotator(train_data=train_data, dev_data=dev_data, tag_to_id=tag_to_id, batch_size=batch_size, stage=stage, encoder_model=encoder_model,
+                                   dropout_rate=dropout_rate, lr=lr, pad_token_id=train_data.pad_token_id,
+                                   num_gpus=num_gpus, b=b)
     # elif model_type=='v2':
     #     return NERAlignv2Annotator(train_data=train_data, dev_data=dev_data, tag_to_id=tag_to_id, batch_size=batch_size, stage=stage, encoder_model=encoder_model, dropout_rate=dropout_rate, lr=lr, pad_token_id=train_data.pad_token_id, num_gpus=num_gpus)
     # elif model_type=='v3':
@@ -152,14 +159,14 @@ def load_model(model_file, tag_to_id=None, stage='test', model_type='v0'):
         model = NERBaseAnnotator.load_from_checkpoint(model_file, hparams_file=hparams_file, stage=stage, tag_to_id=tag_to_id)
     elif model_type=='v1':
         model = NERAlignv1Annotator.load_from_checkpoint(model_file, hparams_file=hparams_file, stage=stage, tag_to_id=tag_to_id)
-    elif model_type=='v2':
-        model = NERAlignv2Annotator.load_from_checkpoint(model_file, hparams_file=hparams_file, stage=stage, tag_to_id=tag_to_id)
-    elif model_type=='v3':
-        model = NERAlignv3Annotator.load_from_checkpoint(model_file, hparams_file=hparams_file, stage=stage, tag_to_id=tag_to_id)
-    elif model_type=='v4':
-        model = NERBaseAnnotatorv4.load_from_checkpoint(model_file, hparams_file=hparams_file, stage=stage, tag_to_id=tag_to_id)
-    elif model_type=='v5':
-        model = NERAlignv5Annotator.load_from_checkpoint(model_file, hparams_file=hparams_file, stage=stage, tag_to_id=tag_to_id)
+    # elif model_type=='v2':
+    #     model = NERAlignv2Annotator.load_from_checkpoint(model_file, hparams_file=hparams_file, stage=stage, tag_to_id=tag_to_id)
+    # elif model_type=='v3':
+    #     model = NERAlignv3Annotator.load_from_checkpoint(model_file, hparams_file=hparams_file, stage=stage, tag_to_id=tag_to_id)
+    # elif model_type=='v4':
+    #     model = NERBaseAnnotatorv4.load_from_checkpoint(model_file, hparams_file=hparams_file, stage=stage, tag_to_id=tag_to_id)
+    # elif model_type=='v5':
+    #     model = NERAlignv5Annotator.load_from_checkpoint(model_file, hparams_file=hparams_file, stage=stage, tag_to_id=tag_to_id)
     model.stage = stage
     return model, model_file
 
@@ -193,14 +200,14 @@ def save_model(trainer, out_dir, model_name='', timestamp=None):
 
 
 
-def train_model(model, out_dir='', epochs=10, gpus=1, trial=None):
-    trainer = get_trainer(gpus=gpus, out_dir=out_dir, epochs=epochs, trial=trial)
+def train_model(model, out_dir='', epochs=10, gpus=1, trial=None, seed=42):
+    trainer = get_trainer(gpus=gpus, out_dir=out_dir, epochs=epochs, trial=trial, seed=seed)
     trainer.fit(model)
     return trainer
 
 
-def get_trainer(gpus=4, is_test=False, out_dir=None, epochs=10, trial=None):
-    seed_everything(42)
+def get_trainer(gpus=4, is_test=False, out_dir=None, epochs=10, trial=None, seed=42):
+    seed_everything(seed)
     if is_test:
         return pl.Trainer(gpus=1) if torch.cuda.is_available() else pl.Trainer(val_check_interval=100)
 
