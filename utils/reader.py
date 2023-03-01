@@ -232,8 +232,8 @@ es_mc1 = {
 }
 
 dict_categs_mci = {
-    'EN': en_mc2,
-    'ES': es_mc2
+    'EN': en_mc1,
+    'ES': es_mc1
 }
 
 class CoNLLReader(Dataset):
@@ -290,6 +290,7 @@ class CoNLLReader(Dataset):
                     dictionary_categories = dict_categs_mci[_lang]
                 elif _version=='2':
                     dictionary_categories = dict_categs_mcii[_lang]
+                #print(_lang,_version, gathered_ners)
                 input_phrases = [" ".join(g[0])+". "+dictionary_categories.get(g[-1]) for g in gathered_ners]
                 #input_phrases = [" ".join(g[0])+". "+dictionary_categories_es.get(g[-1]) for g in gathered_ners] # spanish
                 
